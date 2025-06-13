@@ -1,46 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Live Chat</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <style>
-    body {
-      font-family: sans-serif;
-      max-width: 600px;
-      margin: auto;
-      padding: 20px;
-    }
-    #chat-box {
-      border: 1px solid #ccc;
-      padding: 10px;
-      height: 300px;
-      overflow-y: scroll;
-      margin-bottom: 10px;
-    }
-    input, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 5px;
-    }
-    .message {
-      margin-bottom: 8px;
-    }
-    .name {
-      font-weight: bold;
-    }
-    .danger {
-      background-color: #ff5252;
-      color: white;
-      border: none;
-    }
-    #clear-button {
-      display: none;
-    }
-  </style>
-</head>
+<!-- Head অংশ একই থাকবে -->
+
 <body>
   <h2>Live Chat</h2>
 
@@ -54,6 +13,14 @@
     <input type="text" id="message" placeholder="Type your message..." onkeydown="if(event.key==='Enter') sendMessage()" />
     <button onclick="sendMessage()">Send</button>
     <button id="clear-button" class="danger" onclick="clearChat()">Clear Chat History</button>
+
+    <!-- Admin-only member management UI -->
+    <div id="admin-panel" style="margin-top: 20px; display: none;">
+      <h4>Manage Members</h4>
+      <input type="text" id="new-member" placeholder="Add new member name" />
+      <button onclick="addMember()">Add Member</button>
+      <ul id="member-list"></ul>
+    </div>
   </div>
 
   <script>
@@ -71,21 +38,31 @@
 
     let currentUser = "";
 
-    function enterChat() {
+    async function enterChat() {
       const name = document.getElementById("username").value.trim();
-      if (name === "") {
+      if (!name) {
         alert("Please enter your name");
         return;
       }
-      currentUser = name;
 
-      // Show "Clear Chat" button only for admin13
-      if (currentUser.toLowerCase() === "admin13") {
-        document.getElementById("clear-button").style.display = "block";
+      const allowedRef = db.collection("allowedUsers").doc(name.toLowerCase());
+      const doc = await allowedRef.get();
+
+      if (name.toLowerCase() !== "cactus" && !doc.exists) {
+        alert("You are not allowed to join the chat.");
+        return;
       }
+
+      currentUser = name;
 
       document.getElementById("login").style.display = "none";
       document.getElementById("chat").style.display = "block";
+
+      if (currentUser.toLowerCase() === "cactus") {
+        document.getElementById("clear-button").style.display = "block";
+        document.getElementById("admin-panel").style.display = "block";
+        loadMemberList();
+      }
     }
 
     function sendMessage() {
@@ -107,9 +84,10 @@
         box.innerHTML = "";
         snapshot.forEach(doc => {
           const data = doc.data();
+          const time = new Date(data.timestamp?.seconds * 1000).toLocaleTimeString();
           const div = document.createElement("div");
           div.className = "message";
-          div.innerHTML = `<span class="name">${data.name}:</span> ${data.message}`;
+          div.innerHTML = `<span class="name">${data.name}:</span> ${data.message} <small style="color:gray;">(${time})</small>`;
           box.appendChild(div);
         });
         box.scrollTop = box.scrollHeight;
@@ -123,6 +101,42 @@
           });
         });
       }
+    }
+
+    // Admin-only member management
+    function addMember() {
+      const newMember = document.getElementById("new-member").value.trim().toLowerCase();
+      if (!newMember) return;
+
+      db.collection("allowedUsers").doc(newMember).set({ addedBy: currentUser })
+        .then(() => {
+          document.getElementById("new-member").value = "";
+          loadMemberList();
+        });
+    }
+
+    function removeMember(name) {
+      if (confirm(`Remove ${name} from allowed users?`)) {
+        db.collection("allowedUsers").doc(name).delete().then(loadMemberList);
+      }
+    }
+
+    function loadMemberList() {
+      const list = document.getElementById("member-list");
+      list.innerHTML = "";
+      db.collection("allowedUsers").get().then(snapshot => {
+        snapshot.forEach(doc => {
+          const li = document.createElement("li");
+          li.textContent = doc.id;
+          li.style.marginBottom = "5px";
+          const btn = document.createElement("button");
+          btn.textContent = "Remove";
+          btn.style.marginLeft = "10px";
+          btn.onclick = () => removeMember(doc.id);
+          li.appendChild(btn);
+          list.appendChild(li);
+        });
+      });
     }
   </script>
 </body>
