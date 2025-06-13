@@ -1,5 +1,58 @@
-<!-- Head অংশ একই থাকবে -->
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Live Chat</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    #chat-box {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 300px;
+      overflow-y: scroll;
+      margin-bottom: 10px;
+      background: white;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      box-sizing: border-box;
+    }
+    .message {
+      margin-bottom: 8px;
+    }
+    .name {
+      font-weight: bold;
+    }
+    .danger {
+      background-color: #ff5252;
+      color: white;
+      border: none;
+    }
+    #clear-button {
+      display: none;
+    }
+    #admin-panel {
+      background: #fff3e0;
+      padding: 10px;
+      margin-top: 20px;
+      border: 1px solid #ffa726;
+    }
+    #member-list li {
+      list-style: none;
+    }
+  </style>
+</head>
 <body>
   <h2>Live Chat</h2>
 
@@ -14,8 +67,7 @@
     <button onclick="sendMessage()">Send</button>
     <button id="clear-button" class="danger" onclick="clearChat()">Clear Chat History</button>
 
-    <!-- Admin-only member management UI -->
-    <div id="admin-panel" style="margin-top: 20px; display: none;">
+    <div id="admin-panel" style="display: none;">
       <h4>Manage Members</h4>
       <input type="text" id="new-member" placeholder="Add new member name" />
       <button onclick="addMember()">Add Member</button>
@@ -103,7 +155,6 @@
       }
     }
 
-    // Admin-only member management
     function addMember() {
       const newMember = document.getElementById("new-member").value.trim().toLowerCase();
       if (!newMember) return;
@@ -117,27 +168,4 @@
 
     function removeMember(name) {
       if (confirm(`Remove ${name} from allowed users?`)) {
-        db.collection("allowedUsers").doc(name).delete().then(loadMemberList);
-      }
-    }
-
-    function loadMemberList() {
-      const list = document.getElementById("member-list");
-      list.innerHTML = "";
-      db.collection("allowedUsers").get().then(snapshot => {
-        snapshot.forEach(doc => {
-          const li = document.createElement("li");
-          li.textContent = doc.id;
-          li.style.marginBottom = "5px";
-          const btn = document.createElement("button");
-          btn.textContent = "Remove";
-          btn.style.marginLeft = "10px";
-          btn.onclick = () => removeMember(doc.id);
-          li.appendChild(btn);
-          list.appendChild(li);
-        });
-      });
-    }
-  </script>
-</body>
-</html>
+ 
