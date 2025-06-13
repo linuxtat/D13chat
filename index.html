@@ -61,7 +61,7 @@
       apiKey: "AIzaSyCYeRcOXqXv0fmy5kSuipL1rt0HJtXpAy4",
       authDomain: "point-store-1ddae.firebaseapp.com",
       projectId: "point-store-1ddae",
-      storageBucket: "point-store-1ddae.firebasestorage.app",
+      storageBucket: "point-store-1ddae.appspot.com",
       messagingSenderId: "629117835494",
       appId: "1:629117835494:web:ad81cff67d140d999ac327"
     };
@@ -79,8 +79,8 @@
       }
       currentUser = name;
 
-      // Only show "Clear Chat" button if admin
-      if (currentUser.toLowerCase() === "admin") {
+      // Show "Clear Chat" button only for admin13
+      if (currentUser.toLowerCase() === "admin13") {
         document.getElementById("clear-button").style.display = "block";
       }
 
