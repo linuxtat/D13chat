@@ -1,36 +1,123 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Secure Chat Rooms</title>
+  <title>Messenger Style Chat</title>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: sans-serif; display: flex; }
-    #onlineUsers { width: 200px; border-right: 1px solid #ccc; padding: 10px; }
-    #chatContainer { flex-grow: 1; padding: 10px; }
-    #messages { height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; }
-    .hidden { display: none; }
-    .message { margin: 4px 0; }
+    body { margin: 0; font-family: Arial, sans-serif; }
+    #app { display: flex; height: 100vh; }
+    #sidebar {
+      width: 300px; border-right: 1px solid #ccc;
+      display: flex; flex-direction: column; background: #f0f2f5;
+    }
+    #chatList { flex-grow: 1; overflow-y: auto; }
+    .chatItem { padding: 10px; cursor: pointer; border-bottom: 1px solid #ddd; }
+    #chatArea {
+      flex-grow: 1; display: flex; flex-direction: column;
+    }
+    #messages { flex-grow: 1; padding: 10px; overflow-y: auto; background: #fff; }
+    .message { margin: 8px 0; }
+    .message.you { text-align: right; }
+    #msgBox { display: flex; border-top: 1px solid #ccc; }
+    #msgInput { flex-grow: 1; padding: 10px; border: none; }
+    #sendBtn { padding: 10px 20px; border: none; background: #1877f2; color: white; cursor: pointer; }
+    #loginScreen { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: white; display: flex; align-items: center; justify-content: center; flex-direction: column; }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
-  <div id="onlineUsers">
-    <h3>Online Users</h3>
-    <ul id="userList"></ul>
+<div id="loginScreen">
+  <h2>Enter your name to join</h2>
+  <input type="text" id="usernameInput" placeholder="Your name">
+  <button onclick="login()">Join</button>
+</div>
+
+<div id="app" style="display:none">
+  <div id="sidebar">
+    <div style="padding: 10px; font-weight: bold;">Chats</div>
+    <div id="chatList"></div>
   </div>
-
-  <div id="chatContainer">
-    <div id="loginDiv">
-      <input type="text" id="username" placeholder="Enter your name">
-      <button onclick="login()">Enter</button>
+  <div id="chatArea">
+    <div id="messages"></div>
+    <div id="msgBox">
+      <input type="text" id="msgInput" placeholder="Type a message">
+      <button id="sendBtn" onclick="sendMessage()">Send</button>
     </div>
+  </div>
+</div>
 
-    <div id="roomDiv" class="hidden">
-      <h3>Welcome <span id="showUser"></span></h3>
-      <button onclick="createRoom()">Create Room</button>
-      <input type="text" id="roomCodeInput" placeholder="Room Code">
-      <button onclick="joinRoom()">Join Room</button>
-    </div>
+<script>
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "SENDER_ID",
+    appId: "APP_ID"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-    <div id="chatDiv" class="hidden">
+  let username = "";
+  let currentChat = "public";
+  let isAdmin = false;
+
+  function login() {
+    username = document.getElementById("usernameInput").value.trim();
+    if (!username) return alert("Enter your name");
+
+    isAdmin = username.toLowerCase() === "admin";
+    document.getElementById("loginScreen").style.display = "none";
+    document.getElementById("app").style.display = "flex";
+
+    db.ref("users/" + username).set(true);
+    db.ref("users/" + username).onDisconnect().remove();
+
+    loadChatList();
+    loadMessages(currentChat);
+  }
+
+  function loadChatList() {
+    const chatList = document.getElementById("chatList");
+    chatList.innerHTML = "";
+    db.ref("chats").on("value", snap => {
+      chatList.innerHTML = "";
+      snap.forEach(chat => {
+        const div = document.createElement("div");
+        div.className = "chatItem";
+        div.textContent = chat.key;
+        div.onclick = () => {
+          currentChat = chat.key;
+          loadMessages(currentChat);
+        };
+        chatList.appendChild(div);
+      });
+    });
+  }
+
+  function loadMessages(chat) {
+    const msgArea = document.getElementById("messages");
+    msgArea.innerHTML = "";
+    db.ref("chats/" + chat).off();
+    db.ref("chats/" + chat).on("child_added", snap => {
+      const data = snap.val();
+      const div = document.createElement("div");
+      div.className = "message" + (data.user === username ? " you" : "");
+      div.innerHTML = `<b>${data.user}:</b> ${data.text}`;
+      msgArea.appendChild(div);
+      msgArea.scrollTop = msgArea.scrollHeight;
+    });
+  }
+
+  function sendMessage() {
+    const text = document.getElementById("msgInput").value.trim();
+    if (!text) return;
+    db.ref("chats/" + currentChat).push({ user: username, text });
+    document.getElementById("msgInput").value = "";
+  }
+</script>
+</body>
+</html>
