@@ -1,245 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Secure Live Chat</title>
+  <title>Secure Chat Rooms</title>
+  <meta charset="UTF-8">
   <style>
-    body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 10px; }
-    #chat-box { border: 1px solid #ccc; background: #fff; padding: 10px; height: 300px; overflow-y: scroll; margin-bottom: 10px; }
-    .message { margin: 5px 0; }
-    .name { font-weight: bold; }
-    #login, #chat, #admin-panel { margin-bottom: 15px; }
-    input, button { padding: 5px; margin: 2px; }
-    #clear-btn { display: none; }
-    .flow-item { margin-bottom: 5px; font-size: 0.9em; background: #e2e2e2; padding: 5px; border-radius: 5px; }
+    body { font-family: sans-serif; display: flex; }
+    #onlineUsers { width: 200px; border-right: 1px solid #ccc; padding: 10px; }
+    #chatContainer { flex-grow: 1; padding: 10px; }
+    #messages { height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; }
+    .hidden { display: none; }
+    .message { margin: 4px 0; }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
 <body>
-
-  <div id="login">
-    <h2>Enter Chat</h2>
-    <input type="text" id="username" placeholder="Enter your secret code" />
-    <button onclick="enterChat()">Enter</button>
-    <div id="error" style="color: red; margin-top: 5px;"></div>
+  <div id="onlineUsers">
+    <h3>Online Users</h3>
+    <ul id="userList"></ul>
   </div>
 
-  <div id="chat" style="display:none;">
-    <h2>Live Chat</h2>
-    <div id="chat-box"></div>
-    <input type="text" id="message" placeholder="Type your message" />
-    <button onclick="sendMessage()">Send</button>
-    <button id="clear-btn" onclick="clearChat()">Clear Chat (Admin)</button>
-  </div>
+  <div id="chatContainer">
+    <div id="loginDiv">
+      <input type="text" id="username" placeholder="Enter your name">
+      <button onclick="login()">Enter</button>
+    </div>
 
-  <div id="admin-panel" style="display:none;">
-    <h3>Admin Panel - Add User</h3>
-    <input type="text" id="new-user-name" placeholder="Enter member name" />
-    <input type="text" id="new-user-code" placeholder="Enter secret code for member" />
-    <button onclick="addAllowedUser()">Add User</button>
-    <div id="admin-msg" style="margin-top: 5px;"></div>
+    <div id="roomDiv" class="hidden">
+      <h3>Welcome <span id="showUser"></span></h3>
+      <button onclick="createRoom()">Create Room</button>
+      <input type="text" id="roomCodeInput" placeholder="Room Code">
+      <button onclick="joinRoom()">Join Room</button>
+    </div>
 
-    <h3>Who Added Whom</h3>
-    <div id="add-history-list"></div>
-  </div>
-
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyCYeRcOXqXv0fmy5kSuipL1rt0HJtXpAy4",
-      authDomain: "point-store-1ddae.firebaseapp.com",
-      projectId: "point-store-1ddae",
-      storageBucket: "point-store-1ddae.appspot.com",
-      messagingSenderId: "629117835494",
-      appId: "1:629117835494:web:ad81cff67d140d999ac327",
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
-    let currentUser = "";
-    let displayName = "";
-    const userColors = {};
-
-    function getColorForUser(name) {
-      if (userColors[name]) return userColors[name];
-      const colors = ["#ff5722", "#4caf50", "#2196f3", "#9c27b0", "#ff9800", "#795548", "#3f51b5", "#009688"];
-      let hash = 0;
-      for (let i = 0; i < name.length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      const index = Math.abs(hash) % colors.length;
-      userColors[name] = colors[index];
-      return userColors[name];
-    }
-
-    function enterChat() {
-      const code = document.getElementById("username").value.trim().toLowerCase();
-      const errorBox = document.getElementById("error");
-
-      if (!code) {
-        errorBox.textContent = "Please enter your secret code.";
-        return;
-      }
-
-      if (code === "admin13") {
-        currentUser = "admin13";
-        displayName = "admin13";
-        showChatUI();
-        return;
-      }
-
-      db.collection("allowedUsers")
-        .where("code", "==", code)
-        .limit(1)
-        .get()
-        .then((querySnapshot) => {
-          if (querySnapshot.empty) {
-            errorBox.textContent = "Invalid code.";
-          } else {
-            const doc = querySnapshot.docs[0];
-            currentUser = code;
-            displayName = doc.data().name;
-            showChatUI();
-          }
-        })
-        .catch((error) => {
-          errorBox.textContent = "Error: " + error.message;
-        });
-    }
-
-    function showChatUI() {
-      document.getElementById("login").style.display = "none";
-      document.getElementById("chat").style.display = "block";
-
-      if (currentUser === "admin13") {
-        document.getElementById("clear-btn").style.display = "inline-block";
-        document.getElementById("admin-panel").style.display = "block";
-      }
-    }
-
-    function sendMessage() {
-      const msg = document.getElementById("message").value.trim();
-      if (!msg) return;
-
-      db.collection("chatMessages").add({
-        name: displayName,
-        message: msg,
-        timestamp: new Date(),
-      });
-
-      document.getElementById("message").value = "";
-    }
-
-    db.collection("chatMessages")
-      .orderBy("timestamp")
-      .onSnapshot((snapshot) => {
-        const box = document.getElementById("chat-box");
-        box.innerHTML = "";
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          const time = data.timestamp?.seconds ? new Date(data.timestamp.seconds * 1000) : new Date();
-          const timeStr = time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-          const dateStr = time.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
-
-          const color = data.name === "system" ? "gray" : getColorForUser(data.name);
-          const nameText = data.name === "system"
-            ? ""
-            : `<span class="name" style="color:${color}">${data.name}:</span> `;
-
-          const div = document.createElement("div");
-          div.className = "message";
-          div.innerHTML = `
-            ${nameText}${data.message}
-            <div style="font-size: 0.7em; color: gray; text-align: right;">
-              ${timeStr}, ${dateStr}
-            </div>
-          `;
-          box.appendChild(div);
-        });
-        box.scrollTop = box.scrollHeight;
-      });
-
-    function addAllowedUser() {
-      if (currentUser !== "admin13") return;
-
-      const newName = document.getElementById("new-user-name").value.trim();
-      const secretCode = document.getElementById("new-user-code").value.trim().toLowerCase();
-      const msgBox = document.getElementById("admin-msg");
-
-      if (!newName || !secretCode) {
-        msgBox.style.color = "red";
-        msgBox.textContent = "Enter both name and code.";
-        return;
-      }
-
-      db.collection("allowedUsers")
-        .doc(secretCode)
-        .set({
-          name: newName,
-          code: secretCode,
-          createdAt: new Date(),
-        })
-        .then(() => {
-          msgBox.style.color = "green";
-          msgBox.textContent = `"${newName}" added with secret code.`;
-          document.getElementById("new-user-name").value = "";
-          document.getElementById("new-user-code").value = "";
-
-          db.collection("chatMessages").add({
-            name: "system",
-            message: `"${currentUser}" added "${newName}" to the chat.`,
-            timestamp: new Date(),
-          });
-
-          db.collection("addHistory").add({
-            addedBy: currentUser,
-            addedUser: newName,
-            timestamp: new Date(),
-          });
-        })
-        .catch((error) => {
-          msgBox.style.color = "red";
-          msgBox.textContent = "Error: " + error.message;
-        });
-    }
-
-    function clearChat() {
-      if (!confirm("Are you sure you want to delete all chat history?")) return;
-      db.collection("chatMessages")
-        .get()
-        .then((snapshot) => {
-          const batch = db.batch();
-          snapshot.forEach((doc) => batch.delete(doc.ref));
-          return batch.commit();
-        })
-        .then(() => alert("Chat history cleared."))
-        .catch((error) => alert("Error: " + error.message));
-    }
-
-    function loadAddHistory() {
-      db.collection("addHistory")
-        .orderBy("timestamp")
-        .onSnapshot((snapshot) => {
-          const historyDiv = document.getElementById("add-history-list");
-          historyDiv.innerHTML = "";
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            const time = data.timestamp?.seconds
-              ? new Date(data.timestamp.seconds * 1000)
-              : new Date();
-            const timeStr = time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-            const item = document.createElement("div");
-            item.className = "flow-item";
-            item.textContent = `${data.addedBy} → ${data.addedUser} (${timeStr})`;
-            historyDiv.appendChild(item);
-          });
-        });
-    }
-
-    loadAddHistory();
-  </script>
-</body>
-</html>
+    <div id="chatDiv" class="hidden">
